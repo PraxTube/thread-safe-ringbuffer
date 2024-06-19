@@ -25,7 +25,7 @@ TEST_TARGET = $(foreach test_src, $(TEST_SRCS), $(patsubst $(TEST_DIR)/%.c, $(BU
 CC = clang
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -I$(INCLUDE_DIR)
+CFLAGS = -Wall -Wextra -I$(INCLUDE_DIR) -pthread -g -gdwarf-4
 
 # Default rule
 all: $(TEST_TARGET)
