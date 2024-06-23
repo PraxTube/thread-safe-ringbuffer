@@ -1,6 +1,5 @@
-#include "../include/ringbuf.h"
+#include "../../include/ringbuf.h"
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 
 int write_and_check(rbctx_t *ringbuffer_context, char *msg, size_t msg_len) {
@@ -55,6 +54,8 @@ int main()
         exit(1);
     }
     ringbuffer_init(ringbuffer_context, rbuf, rbuf_size);
+
+    printf("Context Buffer:\nStart = %u, End = %u\n", *ringbuffer_context->begin, *ringbuffer_context->end);
 
     /* write once to buffer */
     if (write_and_check(ringbuffer_context, msg, msg_len) != 0) {
