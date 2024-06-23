@@ -14,16 +14,13 @@ int write_and_check(rbctx_t *ringbuffer_context, char *msg, size_t msg_len) {
     return 0;
 }
 
-void read_available(rbctx_t *ringbuffer_context, FILE *fp_dst) {
+void read_available(rbctx_t *ringbuffer_context, FILE *fp_dst, size_t nr_of_msgs_to_read) {
     unsigned char buf[BUF_SIZE];
     size_t buf_len = BUF_SIZE;
-    int retval = ringbuffer_read(ringbuffer_context, buf, &buf_len);
-    while(retval != RINGBUFFER_EMPTY) {
-        assert(retval != OUTPUT_BUFFER_TOO_SMALL);
-
-        fwrite(buf, sizeof(*buf), buf_len, fp_dst);
+    for (size_t i = 0; i < nr_of_msgs_to_read; i++) {
         buf_len = BUF_SIZE;
-        retval = ringbuffer_read(ringbuffer_context, buf, &buf_len);
+        assert(ringbuffer_read(ringbuffer_context, buf, &buf_len) == SUCCESS);
+        fwrite(buf, sizeof(*buf), buf_len, fp_dst);
     }
 }
 
@@ -95,36 +92,35 @@ int main( int argc, char *argv[])
     }
     ringbuffer_init(ringbuffer_context, rbuf, rbuf_size);
 
-    printf("Writing and reading...\n");
-    printf("This can take some time due to unthreaded implementation\n");
-    printf("Currently writer also has to wait that reader timeouts to continue writing\n");
-
     /* write to ringbuffer in random sized chunks */
     unsigned char buf[BUF_SIZE];
+    size_t nr_of_msgs_written = 0;
+    size_t nr_of_bytes_written = 0;
     size_t read = 1, buf_len;
     while (read > 0) {
         buf_len = (rand() % BUF_SIZE) + 1; // random size between 1 and BUF_SIZE
         read = fread(buf, sizeof(*buf), buf_len, fp_src);
+        
+        /* check if write would fail, if so read available messages */
+        if (nr_of_bytes_written + (read + sizeof(size_t)) >= rbuf_size) {
+            read_available(ringbuffer_context, fp_dst, nr_of_msgs_written);
+            nr_of_msgs_written = 0;
+            nr_of_bytes_written = 0;
+        }
+
+        /* write to buffer */
         if (read > 0) {
             if (ringbuffer_write(ringbuffer_context, (char*) buf, read) != SUCCESS) {
-                /* if write fails, it means that the buffer is full */
-                /* read from ringbuffer (to free up some space) and write to destination file */
-                read_available(ringbuffer_context, fp_dst);
-                printf(".");
-                fflush(stdout);
-
-                /* try to write again - which should succeed */
-                if (ringbuffer_write(ringbuffer_context, (char*) buf, read) != SUCCESS) {
-                    printf("Error: write failed\n");
-                    exit(1);
-                }
+                printf("Error: write failed\n");
+                exit(1);
             }
+            nr_of_msgs_written++;
+            nr_of_bytes_written += read + sizeof(size_t);
         } 
     }
 
     /* read last part of the buffer */
-    read_available(ringbuffer_context, fp_dst);
-    printf(".\n");
+    read_available(ringbuffer_context, fp_dst, nr_of_msgs_written);
 
     fclose(fp_src);
     fclose(fp_dst);

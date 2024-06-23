@@ -9,6 +9,9 @@
 #define RBUF_SIZE 500  // bytes
 #define WAIT_TIME 1000  // usec
 
+int READER_ONE_COUNT = 0;
+int READER_TWO_COUNT = 0;
+
 typedef struct {
     rbctx_t *rb;
     char** strings;
@@ -63,6 +66,17 @@ void *reader(void *arg)
         write_result[idx] = malloc(read);
         strncpy(write_result[idx], (char*) buf, read);
         idx += writing_direction;
+
+        if (idx < 0 || idx >= NUMBER_OF_STRINGS) {
+            printf("Something went wrong, exiting\n");
+            exit(1);
+        }
+
+        if (writing_direction == 1) {
+            READER_ONE_COUNT++;
+        } else {
+            READER_TWO_COUNT++;
+        }
 
         /* reset read */
         read = BUF_SIZE;
@@ -163,6 +177,11 @@ int main()
     * ***************************************************************/
 
     printf("comparing results\n");
+    if (READER_ONE_COUNT + READER_TWO_COUNT != NUMBER_OF_STRINGS) {
+        printf("Error: the incorrect number of strings was read\n");
+        exit(1);
+    }
+    
     for (int i = 0; i < NUMBER_OF_STRINGS; i++) {
         int found = 0;
         for (int j = 0; j < NUMBER_OF_STRINGS; j++) {
@@ -175,7 +194,7 @@ int main()
         if (!found) {
             printf("Error: string not found in results\n");
             printf("String: %s\n", strings[i]);
-            return 1;
+            exit(1);
         }
     }
 
