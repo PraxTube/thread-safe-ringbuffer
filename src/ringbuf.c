@@ -55,6 +55,7 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
         context->begin[*context->write] = ((char *)message)[i];
         *context->write += 1;
     }
+    *context->write -= 1;
     return SUCCESS;
 }
 
@@ -71,16 +72,18 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
 
     for (int i = 0; i < *buffer_len; i++) {
         int index = *context->read % *context->end;
-        *context->read += 1;
         char char_to_read = ((char *)context->begin)[index];
+        ((char *)buffer)[i] = char_to_read;
 
         printf("Char: %c\n", char_to_read);
         if (char_to_read == '\0') {
             *buffer_len = i + 1;
             break;
         }
-        ((char *)buffer)[i] = char_to_read;
+        *context->read = (*context->read + 1) % *context->end;
     }
+    print_buf(context);
+
     return SUCCESS;
 }
 
