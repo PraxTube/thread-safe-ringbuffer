@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Dependencies
+        # run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends clang make
+      - name: Run Tests
+        run: ./test.sh
