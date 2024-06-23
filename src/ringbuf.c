@@ -6,6 +6,20 @@
 #include <string.h>
 #include <sys/types.h>
 
+void print_buf(rbctx_t *context) {
+    printf("\nContext: begin: %u, read: %u, write: %u, end: %u\nMessage: ",
+           *context->begin, *context->read, *context->write, *context->end);
+    for (int i = 0; i < *context->end; i++) {
+        char c = context->begin[i];
+        if (c == '\0') {
+            printf("$");
+        } else {
+            printf("%c", c);
+        }
+    }
+    printf("\n");
+}
+
 void ringbuffer_init(rbctx_t *context, void *buffer_location,
                      size_t buffer_size) {
     context->begin = buffer_location;
@@ -46,23 +60,26 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
 
 int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
     if (*buffer_len >= *context->end) {
-        printf("Error: buffer length is bigger then the context size.\n");
+        printf("Warn: buffer length is bigger than the context size.\n");
+    }
+    // Prevent division by 0
+    if (*context->end == 0) {
         return OUTPUT_BUFFER_TOO_SMALL;
     }
 
-    printf("READ: %d\n", *context->read);
+    print_buf(context);
 
     for (int i = 0; i < *buffer_len; i++) {
         int index = *context->read % *context->end;
-        char c = ((char *)context->begin)[index];
-        printf("%c\n", c);
-        if (c == '\0') {
+        *context->read += 1;
+        char char_to_read = ((char *)context->begin)[index];
+
+        printf("Char: %c\n", char_to_read);
+        if (char_to_read == '\0') {
             *buffer_len = i + 1;
             break;
         }
-
-        ((char *)buffer)[i] = c;
-        *context->read += 1;
+        ((char *)buffer)[i] = char_to_read;
     }
     return SUCCESS;
 }
