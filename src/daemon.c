@@ -150,8 +150,10 @@ int simpledaemon(connection_t *connections, int nr_of_connections) {
 
     /* after 5 seconds JOIN all threads (we should definitely have received all
      * messages by then) */
-    printf("daemon: waiting for 5 seconds before canceling reading threads\n");
-    sleep(5);
+    printf(
+        "daemon: waiting for 1 seconds before canceling reading threads\nYou "
+        "may want to increase this sleep time if the tests keep failing\n");
+    sleep(1);
     for (int i = 0; i < NUMBER_OF_PROCESSING_THREADS; i++) {
         pthread_cancel(r_threads[i]);
     }

@@ -29,18 +29,42 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
         return OUTPUT_BUFFER_TOO_SMALL;
     }
 
+    if (context->read == NULL) {
+        printf("Error: read pointer is null");
+        return 1;
+    }
+
     for (int i = 0; i < message_len; i++) {
         if (*context->write % *context->end == 0) {
-            context->write = context->begin;
+            *context->write = 0;
         }
         context->begin[*context->write] = ((char *)message)[i];
         *context->write += 1;
     }
-    return 0;
+    return SUCCESS;
 }
 
 int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
-    /* your solution here */
+    if (*buffer_len >= *context->end) {
+        printf("Error: buffer length is bigger then the context size.\n");
+        return OUTPUT_BUFFER_TOO_SMALL;
+    }
+
+    printf("READ: %d\n", *context->read);
+
+    for (int i = 0; i < *buffer_len; i++) {
+        int index = *context->read % *context->end;
+        char c = ((char *)context->begin)[index];
+        printf("%c\n", c);
+        if (c == '\0') {
+            *buffer_len = i + 1;
+            break;
+        }
+
+        ((char *)buffer)[i] = c;
+        *context->read += 1;
+    }
+    return SUCCESS;
 }
 
 void ringbuffer_destroy(rbctx_t *context) { /* your solution here */

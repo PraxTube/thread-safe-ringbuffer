@@ -1,6 +1,5 @@
-#include "../include/ringbuf.h"
+#include "../../include/ringbuf.h"
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 
 int write_and_check(rbctx_t *ringbuffer_context, char *msg, size_t msg_len) {
