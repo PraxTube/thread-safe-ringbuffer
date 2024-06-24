@@ -12,12 +12,12 @@ void print_buf(rbctx_t *context) {
     for (int i = 0; i < *context->end; i++) {
         char c = context->begin[i];
         if (c == '\0') {
-            printf("$");
+            printf("$ ");
         } else {
             printf("%c", c);
         }
     }
-    printf("\n");
+    printf("---FIN\n");
 }
 
 void ringbuffer_init(rbctx_t *context, void *buffer_location,
@@ -39,13 +39,17 @@ void ringbuffer_init(rbctx_t *context, void *buffer_location,
 }
 
 int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
-    if (message_len >= *context->end) {
+    // Take into consideration the bytes needed to store the message_len
+    if (message_len + sizeof(size_t) >= *context->end) {
         return OUTPUT_BUFFER_TOO_SMALL;
     }
 
-    if (context->read == NULL) {
-        printf("Error: read pointer is null");
-        return 1;
+    for (size_t i = 0; i < sizeof(size_t); i++) {
+        if (*context->write % *context->end == 0) {
+            *context->write = 0;
+        }
+        context->begin[*context->write] = (message_len << (8 * i)) & 0xFF;
+        *context->write = (*context->write + 1) % *context->end;
     }
 
     for (int i = 0; i < message_len; i++) {
@@ -53,16 +57,13 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
             *context->write = 0;
         }
         context->begin[*context->write] = ((char *)message)[i];
-        *context->write += 1;
+        *context->write = (*context->write + 1) % *context->end;
     }
     *context->write -= 1;
     return SUCCESS;
 }
 
 int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
-    if (*buffer_len >= *context->end) {
-        printf("Warn: buffer length is bigger than the context size.\n");
-    }
     // Prevent division by 0
     if (*context->end == 0) {
         return OUTPUT_BUFFER_TOO_SMALL;
@@ -70,16 +71,26 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
 
     print_buf(context);
 
-    for (int i = 0; i < *buffer_len; i++) {
-        int index = *context->read % *context->end;
-        char char_to_read = ((char *)context->begin)[index];
+    size_t message_len = 0;
+    for (size_t i = 0; i < 8; i++) {
+        uint8_t byte = ((uint8_t *)context->begin)[*context->read];
+        message_len |= byte << (8 * i);
+        *context->read = (*context->read + 1) % *context->end;
+    }
+
+    if (message_len > *context->end) {
+        printf(
+            "Error: read message length is bigger than ringbuffer length, %lu "
+            "> %u\n",
+            message_len, *context->end);
+        return 3;
+    }
+
+    for (size_t i = 0; i < message_len; i++) {
+        char char_to_read = ((char *)context->begin)[*context->read];
         ((char *)buffer)[i] = char_to_read;
 
         printf("Char: %c\n", char_to_read);
-        if (char_to_read == '\0') {
-            *buffer_len = i + 1;
-            break;
-        }
         *context->read = (*context->read + 1) % *context->end;
     }
     print_buf(context);
