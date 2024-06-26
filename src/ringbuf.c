@@ -100,7 +100,6 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
         char char_to_read = *context->read;
         ((char *)buffer)[i] = char_to_read;
 
-        printf("Char: %c\n", char_to_read);
         increment_reader(context);
     }
     print_buf(context);
