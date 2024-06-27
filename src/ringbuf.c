@@ -6,25 +6,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-void print_buf(rbctx_t *context) {
-    uintptr_t begin = (uintptr_t)context->begin;
-
-    printf("\nContext: begin: %lu, read: %lu, write: %lu, end: %lu\nMessage: ",
-           (unsigned long)(context->begin),
-           (unsigned long)(context->read - begin),
-           (unsigned long)(context->write - begin),
-           (unsigned long)(context->end - begin));
-    for (int i = 0; i < *context->end; i++) {
-        char c = context->begin[i];
-        if (c == '\0') {
-            printf("$ ");
-        } else {
-            printf("%c", c);
-        }
-    }
-    printf("---FIN\n");
-}
-
 void increment_writer(rbctx_t *context) {
     context->write += 1;
     if (context->write >= context->end) {
@@ -60,7 +41,7 @@ void ringbuffer_init(rbctx_t *context, void *buffer_location,
 int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
     // Take into consideration the bytes needed to store the message_len
     if (context->begin + message_len + sizeof(size_t) >= context->end) {
-        return OUTPUT_BUFFER_TOO_SMALL;
+        return RINGBUFFER_FULL;
     }
 
     // Write the size of the message into buffer before the actual content
@@ -79,13 +60,19 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
 }
 
 int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
-    print_buf(context);
+    if (context->read == context->write) {
+        return RINGBUFFER_EMPTY;
+    }
 
     size_t message_len = 0;
     for (size_t i = 0; i < 8; i++) {
         uint8_t byte = *context->read;
         message_len |= byte << (8 * i);
         increment_reader(context);
+    }
+
+    if (message_len > *buffer_len) {
+        return OUTPUT_BUFFER_TOO_SMALL;
     }
 
     if (context->begin + message_len > context->end) {
@@ -96,14 +83,13 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
         return 3;
     }
 
+    *buffer_len = message_len;
     for (size_t i = 0; i < message_len; i++) {
         char char_to_read = *context->read;
         ((char *)buffer)[i] = char_to_read;
 
         increment_reader(context);
     }
-    print_buf(context);
-
     return SUCCESS;
 }
 
