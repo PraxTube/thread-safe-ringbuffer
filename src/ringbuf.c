@@ -23,19 +23,9 @@ void increment_reader(rbctx_t *context) {
 void ringbuffer_init(rbctx_t *context, void *buffer_location,
                      size_t buffer_size) {
     context->begin = buffer_location;
-
-    context->read = malloc(sizeof(uint8_t));
-    if (context->read != NULL) {
-        context->read = buffer_location;
-    }
-    context->write = malloc(sizeof(uint8_t));
-    if (context->write != NULL) {
-        context->write = buffer_location;
-    }
-    context->end = malloc(sizeof(uint8_t));
-    if (context->end != NULL) {
-        context->end = buffer_location + buffer_size;
-    }
+    context->read = buffer_location;
+    context->write = buffer_location;
+    context->end = buffer_location + buffer_size;
 }
 
 int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
