@@ -18,3 +18,5 @@ jobs:
         run: sudo apt-get update; sudo apt-get install --no-install-recommends clang make
       - name: Run Tests
         run: ./test.sh
+      - name: Run threaded tests multi times
+        run: ./multi-threaded-test.sh
