@@ -90,12 +90,9 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
 
 int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
     pthread_mutex_lock(&context->mutex_read);
-    while (readable_space(context) < sizeof(size_t)) {
-        struct timespec abstime = get_abstime();
-        if (pthread_cond_timedwait(&context->signal_read, &context->mutex_read, &abstime) != 0) {
-            pthread_mutex_unlock(&context->mutex_read);
-            return RINGBUFFER_EMPTY;
-        }
+    if (readable_space(context) < sizeof(size_t)) {
+        pthread_mutex_unlock(&context->mutex_read);
+        return RINGBUFFER_EMPTY;
     }
 
     // Read the size of the message before reading the actual content
