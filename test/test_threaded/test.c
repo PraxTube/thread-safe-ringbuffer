@@ -174,7 +174,7 @@ int main()
 
     printf("comparing results\n");
     if (READER_ONE_COUNT + READER_TWO_COUNT != NUMBER_OF_STRINGS) {
-        printf("Error: the incorrect number of strings was read\n");
+        printf("Error: the incorrect number of strings was read\nExpected: %d, Got: %d", NUMBER_OF_STRINGS, READER_ONE_COUNT + READER_TWO_COUNT);
         exit(1);
     }
     
