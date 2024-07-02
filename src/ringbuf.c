@@ -97,7 +97,7 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
 
     // Read the size of the message before reading the actual content
     size_t message_len = 0;
-    for (size_t i = 0; i < 8; i++) {
+    for (size_t i = 0; i < sizeof(size_t); i++) {
         message_len |= (uint8_t)*context->read << (8 * i);
         increment_reader(context);
     }
