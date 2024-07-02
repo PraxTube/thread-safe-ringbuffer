@@ -37,6 +37,7 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
     // Write the size of the message into buffer before the actual content
     for (size_t i = 0; i < sizeof(message_len); i++) {
         *context->write = (message_len << (8 * i)) & 0xFF;
+        *context->write = (uint8_t)((message_len >> (8 * i)) & 0xFF);
         increment_writer(context);
     }
 
@@ -56,8 +57,7 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
 
     size_t message_len = 0;
     for (size_t i = 0; i < 8; i++) {
-        uint8_t byte = *context->read;
-        message_len |= byte << (8 * i);
+        message_len |= (uint8_t)*context->read << (8 * i);
         increment_reader(context);
     }
 
