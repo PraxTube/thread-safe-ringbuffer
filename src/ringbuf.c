@@ -21,22 +21,18 @@ void increment_reader(rbctx_t *context) {
 }
 
 size_t writable_space(rbctx_t *context) {
-    if (context->write > context->read) {
+    if (context->write >= context->read) {
         return context->end - context->write + context->read - context->begin - 1;
-    } else if (context->write < context->read) {
-        return context->read - context->write - 1;
     } else {
-        return context->end - context->begin - 1;
+        return context->read - context->write - 1;
     }
 }
 
 size_t readable_space(rbctx_t *context) {
-    if (context->write > context->read) {
+    if (context->write >= context->read) {
         return context->write - context->read;
-    } else if (context->write < context->read) {
-        return context->end - context->read + context->write - context->begin;
     } else {
-        return 0;
+        return context->end - context->read + context->write - context->begin;
     }
 }
 
