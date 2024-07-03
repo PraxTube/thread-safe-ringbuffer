@@ -79,8 +79,8 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
         increment_writer(context);
     }
 
-    pthread_mutex_unlock(&context->mutex_write);
     pthread_cond_signal(&context->signal_read);
+    pthread_mutex_unlock(&context->mutex_write);
     return SUCCESS;
 }
 
@@ -118,8 +118,8 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
         increment_reader(context);
     }
 
-    pthread_mutex_unlock(&context->mutex_read);
     pthread_cond_signal(&context->signal_write);
+    pthread_mutex_unlock(&context->mutex_read);
     return SUCCESS;
 }
 
