@@ -4,7 +4,7 @@ test_executable=./build/test_threaded/test
 
 for i in $(seq 1 100); do
   if [ ! -f $test_executable ]; then
-    echo "echo -e \"\033[0;31mFILE NOT FOUND\033[0m --- $test_executable\"" >> $summary_file
+    echo -e "\033[0;31mFILE NOT FOUND\033[0m --- $test_executable" 
   elif [ -x "$test_executable" ]; then
     echo -e "\n===> \033[0;34mRUNNING\033[0m $test_executable, NUM: $i <===\n"
     timeout 5s "$test_executable"
