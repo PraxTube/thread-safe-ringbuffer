@@ -67,6 +67,11 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
         }
     }
 
+    if (writable_space(context) < message_len + sizeof(size_t)) {
+        pthread_mutex_unlock(&context->mutex_write);
+        return RINGBUFFER_FULL;
+    }
+
     // Write the size of the message into buffer before the actual content
     for (size_t i = 0; i < sizeof(message_len); i++) {
         *context->write = (uint8_t)((message_len >> (8 * i)) & 0xFF);
@@ -110,6 +115,11 @@ int ringbuffer_read(rbctx_t *context, void *buffer, size_t *buffer_len) {
             pthread_mutex_unlock(&context->mutex_read);
             return RINGBUFFER_EMPTY;
         }
+    }
+
+    if (readable_space(context) < message_len) {
+        pthread_mutex_unlock(&context->mutex_read);
+        return RINGBUFFER_EMPTY;
     }
 
     // Read the actual content of the ringbuffer into the given buffer
