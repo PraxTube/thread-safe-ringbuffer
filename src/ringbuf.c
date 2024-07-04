@@ -6,11 +6,12 @@
 #include <string.h>
 #include <sys/types.h>
 
-void increment_writer(rbctx_t *context, uint8_t *writer_ptr) {
+uint8_t* incremented_writer(rbctx_t *context, uint8_t *writer_ptr) {
     writer_ptr += 1;
     if (writer_ptr >= context->end) {
         writer_ptr = context->begin;
     }
+    return writer_ptr;
 }
 
 void increment_reader(rbctx_t *context) {
@@ -76,19 +77,13 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
     // Write the size of the message into buffer before the actual content
     for (size_t i = 0; i < sizeof(message_len); i++) {
         *tmp_writer = (uint8_t)((message_len >> (8 * i)) & 0xFF);
-        tmp_writer += 1;
-        if (tmp_writer >= context->end) {
-            tmp_writer = context->begin;
-        }
+        tmp_writer = incremented_writer(context, tmp_writer);
     }
 
     // Write content of message into rinbuffer
     for (int i = 0; i < message_len; i++) {
         *tmp_writer = ((char *)message)[i];
-        tmp_writer += 1;
-        if (tmp_writer >= context->end) {
-            tmp_writer = context->begin;
-        }
+        tmp_writer = incremented_writer(context, tmp_writer);
     }
     context->write = tmp_writer;
 
