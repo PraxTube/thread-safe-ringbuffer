@@ -6,10 +6,10 @@
 #include <string.h>
 #include <sys/types.h>
 
-void increment_writer(rbctx_t *context) {
-    context->write += 1;
-    if (context->write >= context->end) {
-        context->write = context->begin;
+void increment_writer(rbctx_t *context, uint8_t *writer_ptr) {
+    writer_ptr += 1;
+    if (writer_ptr >= context->end) {
+        writer_ptr = context->begin;
     }
 }
 
@@ -72,17 +72,25 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
         return RINGBUFFER_FULL;
     }
 
+    uint8_t *tmp_writer = context->write;
     // Write the size of the message into buffer before the actual content
     for (size_t i = 0; i < sizeof(message_len); i++) {
-        *context->write = (uint8_t)((message_len >> (8 * i)) & 0xFF);
-        increment_writer(context);
+        *tmp_writer = (uint8_t)((message_len >> (8 * i)) & 0xFF);
+        tmp_writer += 1;
+        if (tmp_writer >= context->end) {
+            tmp_writer = context->begin;
+        }
     }
 
     // Write content of message into rinbuffer
     for (int i = 0; i < message_len; i++) {
-        *context->write = ((char *)message)[i];
-        increment_writer(context);
+        *tmp_writer = ((char *)message)[i];
+        tmp_writer += 1;
+        if (tmp_writer >= context->end) {
+            tmp_writer = context->begin;
+        }
     }
+    context->write = tmp_writer;
 
     pthread_cond_signal(&context->signal_read);
     pthread_mutex_unlock(&context->mutex_write);
