@@ -76,9 +76,104 @@ void *write_packets(void *arg) {
 
 /* YOUR CODE STARTS HERE */
 
+#define NUMBER_OF_STRINGS 1000
+#define BUF_SIZE 50     // bytes
+#define RBUF_SIZE 500   // bytes
+#define WAIT_TIME 1000  // usec
+
+typedef struct {
+    rbctx_t *ctx;
+} r_thread_args_t;
+
 // 1. read functionality
 // 2. filtering functionality
 // 3. (thread-safe) write to file functionality
+
+void *read_packets(void *arg) {
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    rbctx_t *ctx = ((r_thread_args_t *)arg)->ctx;
+
+    unsigned char buffer[MESSAGE_SIZE];
+    size_t buffer_len = MESSAGE_SIZE;
+    while (1) {
+        buffer_len = MESSAGE_SIZE;
+        while (ringbuffer_read(ctx, buffer, &buffer_len) == RINGBUFFER_EMPTY) {
+            buffer_len = MESSAGE_SIZE;
+            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+            usleep(WAIT_TIME);
+            pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+        }
+
+        size_t n = sizeof(size_t);
+        if (buffer_len < 3 * n) {
+            printf("error: The read message is too small, %zu\n", buffer_len);
+            continue;
+        }
+
+        printf("ok: length of buffer is %zu\n", buffer_len);
+
+        size_t source_port, target_port, packet_id;
+        memcpy(&source_port, buffer, n);
+        memcpy(&target_port, buffer + n, n);
+        memcpy(&packet_id, buffer + 2 * n, n);
+
+        if (source_port > MAXIMUM_PORT || target_port > MAXIMUM_PORT) {
+            printf("error: Port bigger than maximum port allowed, from: %zu, to: %zu", source_port, target_port);
+            exit(1);
+        }
+
+        size_t message_len = buffer_len - 3 * n;
+        unsigned char message[message_len];
+        memcpy(message, buffer + 3 * n, message_len);
+
+        printf("Message: %s\n", message);
+
+        if (source_port == target_port) {
+            continue;
+        } else if (source_port == 42 || target_port == 42) {
+            continue;
+        } else if (source_port + target_port == 42) {
+            continue;
+        }
+
+        int contains_malicious = 0;
+        unsigned char malicious_message[10] = {0};
+        for (int i = 0; i < message_len; i++) {
+            if (!strchr("malicious", message[i])) {
+                continue;
+            }
+
+            for (size_t i = 0; i < 8; i++) {
+                malicious_message[i] = malicious_message[i + 1];
+            }
+            malicious_message[8] = message[i];
+
+            if (strcmp((char *)malicious_message, "malicious") == 0) {
+                contains_malicious = 1;
+                break;
+            }
+        }
+
+        if (contains_malicious) {
+            continue;
+        }
+
+        char file_name[20];
+        sprintf(file_name, "%zu.txt", target_port);
+        FILE *fout = fopen(file_name, "w");
+
+        if (fout == NULL) {
+            return NULL;
+        }
+
+        fprintf(fout, (char *)message);
+
+        fclose(fout);
+    };
+    return NULL;
+}
 
 /* YOUR CODE ENDS HERE */
 
@@ -134,8 +229,12 @@ int simpledaemon(connection_t *connections, int nr_of_connections) {
 
     /* YOUR CODE STARTS HERE */
 
-    // 1. think about what arguments you need to pass to the processing threads
-    // 2. start the processing threads
+    printf("creating reader threads\n");
+
+    for (size_t i = 0; i < NUMBER_OF_PROCESSING_THREADS; i++) {
+        r_thread_args_t r_args = {&rb_ctx};
+        pthread_create(&r_threads[i], NULL, read_packets, &r_args);
+    }
 
     /* YOUR CODE ENDS HERE */
 
@@ -151,9 +250,9 @@ int simpledaemon(connection_t *connections, int nr_of_connections) {
     /* after 5 seconds JOIN all threads (we should definitely have received all
      * messages by then) */
     printf(
-        "daemon: waiting for 1 seconds before canceling reading threads\nYou "
+        "daemon: waiting for 5 seconds before canceling reading threads\nYou "
         "may want to increase this sleep time if the tests keep failing\n");
-    sleep(1);
+    sleep(5);
     for (int i = 0; i < NUMBER_OF_PROCESSING_THREADS; i++) {
         pthread_cancel(r_threads[i]);
     }

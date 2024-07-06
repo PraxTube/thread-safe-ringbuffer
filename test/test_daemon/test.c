@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <string.h>
 
-#include "../include/daemon.h"
+#include "../../include/daemon.h"
 
 int check_files(const char *file1, const char *file2) {
     FILE *fp1 = fopen(file1, "r");
