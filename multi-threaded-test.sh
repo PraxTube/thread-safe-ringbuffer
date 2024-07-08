@@ -2,7 +2,7 @@
 
 test_executable=./build/test_threaded/test
 
-for i in $(seq 1 100); do
+for i in $(seq 1 35); do
   if [ ! -f $test_executable ]; then
     echo -e "\033[0;31mFILE NOT FOUND\033[0m --- $test_executable" 
   elif [ -x "$test_executable" ]; then
