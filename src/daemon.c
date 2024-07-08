@@ -85,34 +85,68 @@ typedef struct {
     rbctx_t *ctx;
 } r_thread_args_t;
 
+typedef struct {
+    size_t next_packet_id;
+    pthread_mutex_t mutex;
+    pthread_cond_t signal;
+} port_value_t;
+
+// MAXIMUM_PORT should be inclusive here.
+port_value_t port_values[MAXIMUM_PORT + 1];
+
 // 1. read functionality
 // 2. filtering functionality
 // 3. (thread-safe) write to file functionality
 
+int invalid_ports(size_t source_port, size_t target_port) {
+    if (source_port == target_port) {
+        return 1;
+    } else if (source_port == 42 || target_port == 42) {
+        return 1;
+    } else if (source_port + target_port == 42) {
+        return 1;
+    }
+    return 0;
+}
+
+int contains_malicious(unsigned char *message, size_t message_len) {
+    char *malicious_str = "malicious";
+    for (size_t i = 0; i < message_len; i++) {
+        if (message[i] != malicious_str[0]) {
+            continue;
+        }
+        malicious_str = malicious_str + 1;
+
+        if (malicious_str[0] == '\0') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void *read_packets(void *arg) {
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    // This is probably not necessary as these are the defaults,
+    // but it's more verbose this way.
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
     rbctx_t *ctx = ((r_thread_args_t *)arg)->ctx;
 
     unsigned char buffer[MESSAGE_SIZE];
     size_t buffer_len = MESSAGE_SIZE;
     while (1) {
+        pthread_testcancel();
         buffer_len = MESSAGE_SIZE;
-        while (ringbuffer_read(ctx, buffer, &buffer_len) == RINGBUFFER_EMPTY) {
-            buffer_len = MESSAGE_SIZE;
-            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-            usleep(WAIT_TIME);
-            pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+        if (ringbuffer_read(ctx, buffer, &buffer_len) != SUCCESS) {
+            continue;
         }
 
         size_t n = sizeof(size_t);
         if (buffer_len < 3 * n) {
-            printf("error: The read message is too small, %zu\n", buffer_len);
-            continue;
+            fprintf(stderr, "error: The read message is too small, %zu\n",
+                    buffer_len);
+            exit(1);
         }
-
-        printf("ok: length of buffer is %zu\n", buffer_len);
 
         size_t source_port, target_port, packet_id;
         memcpy(&source_port, buffer, n);
@@ -120,7 +154,10 @@ void *read_packets(void *arg) {
         memcpy(&packet_id, buffer + 2 * n, n);
 
         if (source_port > MAXIMUM_PORT || target_port > MAXIMUM_PORT) {
-            printf("error: Port bigger than maximum port allowed, from: %zu, to: %zu", source_port, target_port);
+            fprintf(stderr,
+                    "error: Port bigger than maximum port allowed, from: %zu, "
+                    "to: %zu",
+                    source_port, target_port);
             exit(1);
         }
 
@@ -128,49 +165,35 @@ void *read_packets(void *arg) {
         unsigned char message[message_len];
         memcpy(message, buffer + 3 * n, message_len);
 
-        printf("Message: %s\n", message);
+        port_value_t *port_value = &port_values[target_port];
 
-        if (source_port == target_port) {
-            continue;
-        } else if (source_port == 42 || target_port == 42) {
-            continue;
-        } else if (source_port + target_port == 42) {
+        if (invalid_ports(source_port, target_port) ||
+            contains_malicious(message, message_len)) {
+            pthread_mutex_lock(&port_value->mutex);
+            port_value->next_packet_id += 1;
+            pthread_cond_broadcast(&port_value->signal);
+            pthread_mutex_unlock(&port_value->mutex);
             continue;
         }
 
-        int contains_malicious = 0;
-        unsigned char malicious_message[10] = {0};
-        for (int i = 0; i < message_len; i++) {
-            if (!strchr("malicious", message[i])) {
-                continue;
-            }
-
-            for (size_t i = 0; i < 8; i++) {
-                malicious_message[i] = malicious_message[i + 1];
-            }
-            malicious_message[8] = message[i];
-
-            if (strcmp((char *)malicious_message, "malicious") == 0) {
-                contains_malicious = 1;
-                break;
-            }
-        }
-
-        if (contains_malicious) {
-            continue;
+        pthread_mutex_lock(&port_value->mutex);
+        while (packet_id != port_value->next_packet_id) {
+            pthread_cond_wait(&port_value->signal, &port_value->mutex);
         }
 
         char file_name[20];
         sprintf(file_name, "%zu.txt", target_port);
-        FILE *fout = fopen(file_name, "w");
+        FILE *fout = fopen(file_name, "a");
 
         if (fout == NULL) {
-            return NULL;
+            exit(1);
         }
 
-        fprintf(fout, (char *)message);
-
+        fwrite(message, sizeof(unsigned char), message_len, fout);
         fclose(fout);
+        port_value->next_packet_id += 1;
+        pthread_cond_broadcast(&port_value->signal);
+        pthread_mutex_unlock(&port_value->mutex);
     };
     return NULL;
 }
@@ -231,6 +254,11 @@ int simpledaemon(connection_t *connections, int nr_of_connections) {
 
     printf("creating reader threads\n");
 
+    for (int i = 0; i < MAXIMUM_PORT; i++) {
+        pthread_mutex_init(&port_values[i].mutex, NULL);
+        pthread_cond_init(&port_values[i].signal, NULL);
+    }
+
     for (size_t i = 0; i < NUMBER_OF_PROCESSING_THREADS; i++) {
         r_thread_args_t r_args = {&rb_ctx};
         pthread_create(&r_threads[i], NULL, read_packets, &r_args);
@@ -273,7 +301,10 @@ int simpledaemon(connection_t *connections, int nr_of_connections) {
 
     /* YOUR CODE STARTS HERE */
 
-    // use this section to free any memory, destory mutexe etc.
+    for (int i = 0; i < MAXIMUM_PORT; i++) {
+        pthread_mutex_destroy(&port_values[i].mutex);
+        pthread_cond_destroy(&port_values[i].signal);
+    }
 
     /* YOUR CODE ENDS HERE */
 
