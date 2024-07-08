@@ -81,7 +81,7 @@ int ringbuffer_write(rbctx_t *context, void *message, size_t message_len) {
     }
 
     // Write content of message into rinbuffer
-    for (int i = 0; i < message_len; i++) {
+    for (size_t i = 0; i < message_len; i++) {
         *tmp_writer = ((char *)message)[i];
         tmp_writer = incremented_writer(context, tmp_writer);
     }
