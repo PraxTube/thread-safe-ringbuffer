@@ -82,10 +82,6 @@ void *write_packets(void *arg) {
 #define WAIT_TIME 1000  // usec
 
 typedef struct {
-    rbctx_t *ctx;
-} r_thread_args_t;
-
-typedef struct {
     size_t next_packet_id;
     pthread_mutex_t mutex;
     pthread_cond_t signal;
@@ -93,10 +89,6 @@ typedef struct {
 
 // MAXIMUM_PORT should be inclusive here.
 port_value_t port_values[MAXIMUM_PORT + 1];
-
-// 1. read functionality
-// 2. filtering functionality
-// 3. (thread-safe) write to file functionality
 
 int invalid_ports(size_t source_port, size_t target_port) {
     if (source_port == target_port) {
@@ -130,7 +122,7 @@ void *read_packets(void *arg) {
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-    rbctx_t *ctx = ((r_thread_args_t *)arg)->ctx;
+    rbctx_t *ctx = (rbctx_t *)arg;
 
     unsigned char buffer[MESSAGE_SIZE];
     size_t buffer_len = MESSAGE_SIZE;
@@ -260,8 +252,7 @@ int simpledaemon(connection_t *connections, int nr_of_connections) {
     }
 
     for (size_t i = 0; i < NUMBER_OF_PROCESSING_THREADS; i++) {
-        r_thread_args_t r_args = {&rb_ctx};
-        pthread_create(&r_threads[i], NULL, read_packets, &r_args);
+        pthread_create(&r_threads[i], NULL, read_packets, &rb_ctx);
     }
 
     /* YOUR CODE ENDS HERE */

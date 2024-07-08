@@ -55,8 +55,6 @@ int main()
     }
     ringbuffer_init(ringbuffer_context, rbuf, rbuf_size);
 
-    printf("Context Buffer:\nStart = %u, End = %u\n", *ringbuffer_context->begin, *ringbuffer_context->end);
-
     /* write once to buffer */
     if (write_and_check(ringbuffer_context, msg, msg_len) != 0) {
         exit(1);
