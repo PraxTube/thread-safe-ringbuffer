@@ -17,7 +17,7 @@ int check_files(const char *file1, const char *file2) {
         return 1;
     }
 
-    char c1, c2;
+    int c1, c2;
     while ((c1 = fgetc(fp1)) != EOF) {
         c2 = fgetc(fp2);
         if (c1 != c2) {
@@ -77,17 +77,17 @@ int main() {
     fclose(fp3);
 
     /* check if the files have the correct content */
-    if (check_files("11.txt", "test/test_daemon/rndtxt1_lsg.txt") != 0) {
+    if (check_files("test/test_daemon/rndtxt1_lsg.txt", "11.txt") != 0) {
         fprintf(stderr, "Error: files 11.txt and test/test_daemon/rndtxt1_lsg.txt are not the same\n");
         return 1;
     }
 
-    if (check_files("12.txt", "test/test_daemon/rndtxt2_lsg.txt") != 0) {
+    if (check_files("test/test_daemon/rndtxt2_lsg.txt", "12.txt") != 0) {
         fprintf(stderr, "Error: files 12.txt and test/test_daemon/rndtxt2_lsg.txt are not the same\n");
         return 1;
     }
 
-    if (check_files("13.txt", "test/test_daemon/rndtxt3_lsg.txt") != 0) {
+    if (check_files("test/test_daemon/rndtxt3_lsg.txt", "13.txt") != 0) {
         fprintf(stderr, "Error: files 13.txt and test/test_daemon/rndtxt3_lsg.txt are not the same\n");
         return 1;
     }
