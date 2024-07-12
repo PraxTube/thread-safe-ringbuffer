@@ -14,6 +14,8 @@ test_executables=(
   "./build/test_unthreaded_wrap/test_complex"
   "./build/test_unthreaded_no_wrap/test_long"
   "./build/test_unthreaded_wrap/test_long"
+  "./build/test_unit/test_read"
+  "./build/test_unit/test_write"
 )
 
 for test_executable in "${test_executables[@]}"; do

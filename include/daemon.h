@@ -4,7 +4,7 @@
 typedef struct {
     int from;
     int to;
-    char *filename;
+    char* filename;
 } connection_t;
 
 #define MESSAGE_SIZE 128
@@ -19,6 +19,6 @@ typedef struct {
  * @param number_of_connections
  * @return int
  */
-int simpledaemon(connection_t *connections, int number_of_connections);
+int simpledaemon(connection_t* connections, int number_of_connections);
 
 #endif
